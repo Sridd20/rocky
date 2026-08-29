@@ -1,0 +1,183 @@
+<mujoco model="pentapod">
+  <compiler angle="degree" autolimits="true"/>
+  <option gravity="0 0 -9.81" timestep="0.002"/>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1=".25 .35 .45" rgb2="0 0 0" width="32" height="512"/>
+    <texture name="grid" type="2d" builtin="checker" width="512" height="512" rgb1=".12 .18 .22" rgb2=".18 .26 .32"/>
+    <material name="grid"     texture="grid" texrepeat="4 4" texuniform="true" reflectance=".15"/>
+    <material name="body_mat" rgba=".30 .55 .80 1"/>
+    <material name="leg_mat"  rgba=".72 .72 .72 1"/>
+    <material name="foot_mat" rgba=".90 .30 .20 1"/>
+  </asset>
+
+  <default>
+    <joint damping="0.10" stiffness="0.0" frictionloss="0.01"/>
+    <geom contype="1" conaffinity="1" condim="3" friction="0.8 0.005 0.0001"/>
+    <position kp="5" forcelimited="true" forcerange="-2 2"/>
+  </default>
+
+  <contact>
+    <exclude body1="base" body2="coxa_0"/>
+    <exclude body1="base" body2="femur_0"/>
+    <exclude body1="base" body2="tibia_0"/>
+    <exclude body1="base" body2="coxa_1"/>
+    <exclude body1="base" body2="femur_1"/>
+    <exclude body1="base" body2="tibia_1"/>
+    <exclude body1="base" body2="coxa_2"/>
+    <exclude body1="base" body2="femur_2"/>
+    <exclude body1="base" body2="tibia_2"/>
+    <exclude body1="base" body2="coxa_3"/>
+    <exclude body1="base" body2="femur_3"/>
+    <exclude body1="base" body2="tibia_3"/>
+    <exclude body1="base" body2="coxa_4"/>
+    <exclude body1="base" body2="femur_4"/>
+    <exclude body1="base" body2="tibia_4"/>
+    <exclude body1="coxa_0" body2="coxa_1"/>
+    <exclude body1="coxa_1" body2="coxa_2"/>
+    <exclude body1="coxa_2" body2="coxa_3"/>
+    <exclude body1="coxa_3" body2="coxa_4"/>
+    <exclude body1="coxa_4" body2="coxa_0"/>
+    <exclude body1="femur_0" body2="femur_1"/>
+    <exclude body1="femur_1" body2="femur_2"/>
+    <exclude body1="femur_2" body2="femur_3"/>
+    <exclude body1="femur_3" body2="femur_4"/>
+    <exclude body1="femur_4" body2="femur_0"/>
+  </contact>
+
+  <worldbody>
+    <light name="sun"  pos="0 0 2.0" dir="0 0 -1"  diffuse="1 1 1"     specular="0.3 0.3 0.3"/>
+    <light name="fill" pos="1 -1 1"  dir="-1 1 -1" diffuse="0.4 0.4 0.5" specular="0 0 0"/>
+    <geom name="floor" type="plane" size="3 3 .1" material="grid"/>
+
+    <body name="base" pos="0 0 0.25">
+      <freejoint name="root"/>
+      <inertial mass="0.80" pos="0 0 0" diaginertia="0.0030 0.0030 0.0050"/>
+      <geom name="base_geom" type="cylinder" size="0.130 0.015" material="body_mat"/>
+      <geom name="dome"      type="sphere"   size="0.055" pos="0 0 0.025" material="body_mat"/>
+
+      <!-- LEG 0  (0 deg) -->
+      <body name="coxa_0" pos="0.130 0.000 0" euler="0 0 0">
+        <joint name="hip_0" type="hinge" axis="0 0 1" range="-45 45"/>
+        <inertial mass="0.025" pos="0.022 0 0" diaginertia="1e-5 1e-5 1e-5"/>
+        <geom name="coxa_geom_0" type="capsule" fromto="0 0 0  0.045 0 0" size="0.009" material="leg_mat"/>
+        <body name="femur_0" pos="0.045 0 0">
+          <joint name="knee_0" type="hinge" axis="0 1 0" range="-80 20"/>
+          <inertial mass="0.035" pos="0.045 0 -0.020" diaginertia="1e-5 3e-5 3e-5"/>
+          <geom name="femur_geom_0" type="capsule" fromto="0 0 0  0.090 0 -0.040" size="0.009" material="leg_mat"/>
+          <body name="tibia_0" pos="0.090 0 -0.040">
+            <joint name="ankle_0" type="hinge" axis="0 1 0" range="-20 80"/>
+            <inertial mass="0.025" pos="0.030 0 -0.045" diaginertia="1e-5 3e-5 3e-5"/>
+            <geom name="tibia_geom_0" type="capsule" fromto="0 0 0  0.060 0 -0.090" size="0.007" material="leg_mat"/>
+            <geom name="foot_0" type="sphere" size="0.013" pos="0.060 0 -0.090" material="foot_mat" condim="6" friction="1.2 0.005 0.0001"/>
+            <site name="foot_0_site" pos="0.060 0 -0.090" size="0.013"/>
+          </body>
+        </body>
+      </body>
+
+      <!-- LEG 1  (72 deg) -->
+      <body name="coxa_1" pos="0.040 0.124 0" euler="0 0 72">
+        <joint name="hip_1" type="hinge" axis="0 0 1" range="-45 45"/>
+        <inertial mass="0.025" pos="0.022 0 0" diaginertia="1e-5 1e-5 1e-5"/>
+        <geom name="coxa_geom_1" type="capsule" fromto="0 0 0  0.045 0 0" size="0.009" material="leg_mat"/>
+        <body name="femur_1" pos="0.045 0 0">
+          <joint name="knee_1" type="hinge" axis="0 1 0" range="-80 20"/>
+          <inertial mass="0.035" pos="0.045 0 -0.020" diaginertia="1e-5 3e-5 3e-5"/>
+          <geom name="femur_geom_1" type="capsule" fromto="0 0 0  0.090 0 -0.040" size="0.009" material="leg_mat"/>
+          <body name="tibia_1" pos="0.090 0 -0.040">
+            <joint name="ankle_1" type="hinge" axis="0 1 0" range="-20 80"/>
+            <inertial mass="0.025" pos="0.030 0 -0.045" diaginertia="1e-5 3e-5 3e-5"/>
+            <geom name="tibia_geom_1" type="capsule" fromto="0 0 0  0.060 0 -0.090" size="0.007" material="leg_mat"/>
+            <geom name="foot_1" type="sphere" size="0.013" pos="0.060 0 -0.090" material="foot_mat" condim="6" friction="1.2 0.005 0.0001"/>
+            <site name="foot_1_site" pos="0.060 0 -0.090" size="0.013"/>
+          </body>
+        </body>
+      </body>
+
+      <!-- LEG 2  (144 deg) -->
+      <body name="coxa_2" pos="-0.105 0.076 0" euler="0 0 144">
+        <joint name="hip_2" type="hinge" axis="0 0 1" range="-45 45"/>
+        <inertial mass="0.025" pos="0.022 0 0" diaginertia="1e-5 1e-5 1e-5"/>
+        <geom name="coxa_geom_2" type="capsule" fromto="0 0 0  0.045 0 0" size="0.009" material="leg_mat"/>
+        <body name="femur_2" pos="0.045 0 0">
+          <joint name="knee_2" type="hinge" axis="0 1 0" range="-80 20"/>
+          <inertial mass="0.035" pos="0.045 0 -0.020" diaginertia="1e-5 3e-5 3e-5"/>
+          <geom name="femur_geom_2" type="capsule" fromto="0 0 0  0.090 0 -0.040" size="0.009" material="leg_mat"/>
+          <body name="tibia_2" pos="0.090 0 -0.040">
+            <joint name="ankle_2" type="hinge" axis="0 1 0" range="-20 80"/>
+            <inertial mass="0.025" pos="0.030 0 -0.045" diaginertia="1e-5 3e-5 3e-5"/>
+            <geom name="tibia_geom_2" type="capsule" fromto="0 0 0  0.060 0 -0.090" size="0.007" material="leg_mat"/>
+            <geom name="foot_2" type="sphere" size="0.013" pos="0.060 0 -0.090" material="foot_mat" condim="6" friction="1.2 0.005 0.0001"/>
+            <site name="foot_2_site" pos="0.060 0 -0.090" size="0.013"/>
+          </body>
+        </body>
+      </body>
+
+      <!-- LEG 3  (216 deg) -->
+      <body name="coxa_3" pos="-0.105 -0.076 0" euler="0 0 216">
+        <joint name="hip_3" type="hinge" axis="0 0 1" range="-45 45"/>
+        <inertial mass="0.025" pos="0.022 0 0" diaginertia="1e-5 1e-5 1e-5"/>
+        <geom name="coxa_geom_3" type="capsule" fromto="0 0 0  0.045 0 0" size="0.009" material="leg_mat"/>
+        <body name="femur_3" pos="0.045 0 0">
+          <joint name="knee_3" type="hinge" axis="0 1 0" range="-80 20"/>
+          <inertial mass="0.035" pos="0.045 0 -0.020" diaginertia="1e-5 3e-5 3e-5"/>
+          <geom name="femur_geom_3" type="capsule" fromto="0 0 0  0.090 0 -0.040" size="0.009" material="leg_mat"/>
+          <body name="tibia_3" pos="0.090 0 -0.040">
+            <joint name="ankle_3" type="hinge" axis="0 1 0" range="-20 80"/>
+            <inertial mass="0.025" pos="0.030 0 -0.045" diaginertia="1e-5 3e-5 3e-5"/>
+            <geom name="tibia_geom_3" type="capsule" fromto="0 0 0  0.060 0 -0.090" size="0.007" material="leg_mat"/>
+            <geom name="foot_3" type="sphere" size="0.013" pos="0.060 0 -0.090" material="foot_mat" condim="6" friction="1.2 0.005 0.0001"/>
+            <site name="foot_3_site" pos="0.060 0 -0.090" size="0.013"/>
+          </body>
+        </body>
+      </body>
+
+      <!-- LEG 4  (288 deg) -->
+      <body name="coxa_4" pos="0.040 -0.124 0" euler="0 0 288">
+        <joint name="hip_4" type="hinge" axis="0 0 1" range="-45 45"/>
+        <inertial mass="0.025" pos="0.022 0 0" diaginertia="1e-5 1e-5 1e-5"/>
+        <geom name="coxa_geom_4" type="capsule" fromto="0 0 0  0.045 0 0" size="0.009" material="leg_mat"/>
+        <body name="femur_4" pos="0.045 0 0">
+          <joint name="knee_4" type="hinge" axis="0 1 0" range="-80 20"/>
+          <inertial mass="0.035" pos="0.045 0 -0.020" diaginertia="1e-5 3e-5 3e-5"/>
+          <geom name="femur_geom_4" type="capsule" fromto="0 0 0  0.090 0 -0.040" size="0.009" material="leg_mat"/>
+          <body name="tibia_4" pos="0.090 0 -0.040">
+            <joint name="ankle_4" type="hinge" axis="0 1 0" range="-20 80"/>
+            <inertial mass="0.025" pos="0.030 0 -0.045" diaginertia="1e-5 3e-5 3e-5"/>
+            <geom name="tibia_geom_4" type="capsule" fromto="0 0 0  0.060 0 -0.090" size="0.007" material="leg_mat"/>
+            <geom name="foot_4" type="sphere" size="0.013" pos="0.060 0 -0.090" material="foot_mat" condim="6" friction="1.2 0.005 0.0001"/>
+            <site name="foot_4_site" pos="0.060 0 -0.090" size="0.013"/>
+          </body>
+        </body>
+      </body>
+
+    </body>
+  </worldbody>
+
+  <actuator>
+    <position name="act_hip_0"   joint="hip_0"   kp="5" ctrlrange="-45 45"/>
+    <position name="act_knee_0"  joint="knee_0"  kp="5" ctrlrange="-80 20"/>
+    <position name="act_ankle_0" joint="ankle_0" kp="4" ctrlrange="-20 80"/>
+    <position name="act_hip_1"   joint="hip_1"   kp="5" ctrlrange="-45 45"/>
+    <position name="act_knee_1"  joint="knee_1"  kp="5" ctrlrange="-80 20"/>
+    <position name="act_ankle_1" joint="ankle_1" kp="4" ctrlrange="-20 80"/>
+    <position name="act_hip_2"   joint="hip_2"   kp="5" ctrlrange="-45 45"/>
+    <position name="act_knee_2"  joint="knee_2"  kp="5" ctrlrange="-80 20"/>
+    <position name="act_ankle_2" joint="ankle_2" kp="4" ctrlrange="-20 80"/>
+    <position name="act_hip_3"   joint="hip_3"   kp="5" ctrlrange="-45 45"/>
+    <position name="act_knee_3"  joint="knee_3"  kp="5" ctrlrange="-80 20"/>
+    <position name="act_ankle_3" joint="ankle_3" kp="4" ctrlrange="-20 80"/>
+    <position name="act_hip_4"   joint="hip_4"   kp="5" ctrlrange="-45 45"/>
+    <position name="act_knee_4"  joint="knee_4"  kp="5" ctrlrange="-80 20"/>
+    <position name="act_ankle_4" joint="ankle_4" kp="4" ctrlrange="-20 80"/>
+  </actuator>
+
+  <sensor>
+    <touch name="touch_foot_0" site="foot_0_site"/>
+    <touch name="touch_foot_1" site="foot_1_site"/>
+    <touch name="touch_foot_2" site="foot_2_site"/>
+    <touch name="touch_foot_3" site="foot_3_site"/>
+    <touch name="touch_foot_4" site="foot_4_site"/>
+  </sensor>
+
+</mujoco>
