@@ -1,0 +1,19 @@
+# MuJoCo binaries (large, platform-specific)
+mujoco-*/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+
+# Data outputs
+stability_results.csv
+top_gaits.txt
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
