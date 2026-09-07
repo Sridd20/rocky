@@ -52,22 +52,103 @@
 
     <body name="base" pos="0 0 0.25">
       <freejoint name="root"/>
-      <inertial mass="0.80" pos="0 0 0" diaginertia="0.0030 0.0030 0.0050"/>
-      <geom name="base_geom" type="cylinder" size="0.130 0.015" material="body_mat"/>
-      <geom name="dome"      type="sphere"   size="0.055" pos="0 0 0.025" material="body_mat"/>
+      <!--
+        Asymmetric pentagon body scaled to match original robot radius (0.130 m).
+        Shape: short top edge, two equal upper-diagonal sides, two elongated
+        bottom sides meeting at a downward vertex — biases CoM toward
+        legs 2, 3, 4 (the stable tripod) without changing robot scale.
 
-      <!-- LEG 0  (0 deg) -->
-      <body name="coxa_0" pos="0.130 0.000 0" euler="0 0 0">
+        Hip positions (body frame, meters):
+          L0 top-left   (-0.0439, +0.0946)  r=0.104 m  115 deg  SWING
+          L1 top-right  (+0.0439, +0.0946)  r=0.104 m   65 deg  SWING
+          L2 right      (+0.0703, -0.0296)  r=0.076 m  -23 deg  TRIPOD
+          L3 bottom     (+0.0000, -0.1300)  r=0.130 m  -90 deg  TRIPOD
+          L4 left       (-0.0703, -0.0296)  r=0.076 m -157 deg  TRIPOD
+
+        MASS BUDGET (mixed build: hip=SG90 x5, knee+ankle=MG996R x10):
+          Component                      Mass     Notes
+          Body plate (2mm PLA)            5.3g
+          Arduino Uno Q                   32.0g   (68.58x53.34mm, 30-33.5g actual)
+          PCA9685 servo driver             5.0g   required: Uno has only 6 PWM pins
+          Wiring + connectors              8.0g
+          2S 500mAh LiPo                  28.0g   heavier battery for MG996R
+          5V BEC regulator                 5.0g
+          Body total -> 0.083 kg
+
+          Per leg:
+            Coxa  shell + SG90   + bracket   18.6g   0.019 kg  (hip = SG90)
+            Femur shell + MG996R + bracket   74.0g   0.074 kg  (knee = MG996R)
+            Tibia shell + MG996R + bracket   71.5g   0.072 kg  (ankle = MG996R)
+          5 legs total: 821g = 0.821 kg
+
+          GRAND TOTAL: ~879g = 0.879 kg
+
+        CoM NOTE (IMPORTANT):
+          The heavy MG996R legs (145g/leg) dominate total mass (821g vs 58g body).
+          L0 and L1 swing legs point at +Y -> their mass sum nearly cancels L2-L4.
+          Natural system CoM Y with body at origin: ~+0.7mm (barely above tripod edge)
+
+          The body CoM Y is set to -0.120m (battery pushed toward L3/rear).
+          This only shifts system CoM by ~4mm due to body being just 6.6% of total mass.
+          PHYSICAL BUILD REQUIREMENT: mount the 2S LiPo as far toward L3 as
+          possible (~120-130mm from centre) to achieve best CoM bias.
+          Even so, the swing legs (L0,L1) being heavy means the robot will
+          need ACTIVE BALANCING on its 3 tripod legs -- passive CoM alone
+          is insufficient with MG996R legs. This is acceptable for a walking
+          robot where hip actuators can dynamically correct balance.
+
+          Tripod support edge (L2-L4): -105.8 mm
+          Body CoM Y (this tag)      : -120.0 mm (battery placement limit)
+          Resulting system CoM Y     :  ~-7.0 mm (outside triangle by ~99mm)
+          Active balance required    : YES (hip servos compensate)
+      -->
+      <inertial mass="0.083" pos="0.0 -0.120 0" diaginertia="0.00005 0.00018 0.00014"/>
+      <!--
+        body=58g (plate+Nano+PCA9685+wires+2S-LiPo+BEC).
+        Body CoM biased to Y=-120mm by placing battery near L3.
+        System CoM will be ~-7mm Y (MG996R leg mass dominates).
+        Active balance via hip servos needed during 3-leg stance.
+      -->
+      <!-- Pentagon frame: 5 capsule edges -->
+      <!-- Top edge  L0–L1 (short) -->
+      <geom name="edge_01" type="capsule"
+            fromto="-0.0439  0.0946 0   0.0439  0.0946 0"
+            size="0.012" material="body_mat"/>
+      <!-- Upper-right edge  L1–L2 -->
+      <geom name="edge_12" type="capsule"
+            fromto=" 0.0439  0.0946 0   0.0703 -0.0296 0"
+            size="0.012" material="body_mat"/>
+      <!-- Lower-right edge  L2–L3 (long) -->
+      <geom name="edge_23" type="capsule"
+            fromto=" 0.0703 -0.0296 0   0.0000 -0.1300 0"
+            size="0.012" material="body_mat"/>
+      <!-- Lower-left edge  L3–L4 (long) -->
+      <geom name="edge_34" type="capsule"
+            fromto=" 0.0000 -0.1300 0  -0.0703 -0.0296 0"
+            size="0.012" material="body_mat"/>
+      <!-- Upper-left edge  L4–L0 -->
+      <geom name="edge_40" type="capsule"
+            fromto="-0.0703 -0.0296 0  -0.0439  0.0946 0"
+            size="0.012" material="body_mat"/>
+      <!-- Fill panels -->
+      <geom name="fill_top" type="box"
+            pos="0.000  0.033 0" size="0.045 0.062 0.010" material="body_mat"/>
+      <geom name="fill_bot" type="box"
+            pos="0.000 -0.074 0" size="0.035 0.056 0.010" material="body_mat"/>
+      <geom name="dome" type="sphere" size="0.038" pos="0 -0.008 0.018" material="body_mat"/>
+
+      <!-- LEG 0  top-left  (115 deg) — SWING/ARM leg -->
+      <body name="coxa_0" pos="-0.0439 0.0946 0" euler="0 0 115">
         <joint name="hip_0" type="hinge" axis="0 0 1" range="-45 45"/>
-        <inertial mass="0.025" pos="0.022 0 0" diaginertia="1e-5 1e-5 1e-5"/>
+        <inertial mass="0.019" pos="0.022 0 0" diaginertia="1e-6 1e-6 1e-6"/><!-- coxa: shell+SG90+bracket=18.6g -->
         <geom name="coxa_geom_0" type="capsule" fromto="0 0 0  0.045 0 0" size="0.009" material="leg_mat"/>
         <body name="femur_0" pos="0.045 0 0">
           <joint name="knee_0" type="hinge" axis="0 1 0" range="-80 20"/>
-          <inertial mass="0.035" pos="0.045 0 -0.020" diaginertia="1e-5 3e-5 3e-5"/>
+          <inertial mass="0.074" pos="0.045 0 -0.020" diaginertia="0.000023 0.000073 0.000073"/><!-- femur: shell+MG996R+bracket=74g -->
           <geom name="femur_geom_0" type="capsule" fromto="0 0 0  0.090 0 -0.040" size="0.009" material="leg_mat"/>
           <body name="tibia_0" pos="0.090 0 -0.040">
             <joint name="ankle_0" type="hinge" axis="0 1 0" range="-20 80"/>
-            <inertial mass="0.025" pos="0.030 0 -0.045" diaginertia="1e-5 3e-5 3e-5"/>
+            <inertial mass="0.072" pos="0.030 0 -0.045" diaginertia="0.000014 0.000079 0.000079"/><!-- tibia: shell+MG996R+bracket=71.5g -->
             <geom name="tibia_geom_0" type="capsule" fromto="0 0 0  0.060 0 -0.090" size="0.007" material="leg_mat"/>
             <geom name="foot_0" type="sphere" size="0.013" pos="0.060 0 -0.090" material="foot_mat" condim="6" friction="1.2 0.005 0.0001"/>
             <site name="foot_0_site" pos="0.060 0 -0.090" size="0.013"/>
@@ -75,18 +156,18 @@
         </body>
       </body>
 
-      <!-- LEG 1  (72 deg) -->
-      <body name="coxa_1" pos="0.040 0.124 0" euler="0 0 72">
+      <!-- LEG 1  top-right  (65 deg) — SWING/ARM leg -->
+      <body name="coxa_1" pos="0.0439 0.0946 0" euler="0 0 65">
         <joint name="hip_1" type="hinge" axis="0 0 1" range="-45 45"/>
-        <inertial mass="0.025" pos="0.022 0 0" diaginertia="1e-5 1e-5 1e-5"/>
+        <inertial mass="0.019" pos="0.022 0 0" diaginertia="1e-6 1e-6 1e-6"/><!-- coxa: shell+SG90+bracket=18.6g -->
         <geom name="coxa_geom_1" type="capsule" fromto="0 0 0  0.045 0 0" size="0.009" material="leg_mat"/>
         <body name="femur_1" pos="0.045 0 0">
           <joint name="knee_1" type="hinge" axis="0 1 0" range="-80 20"/>
-          <inertial mass="0.035" pos="0.045 0 -0.020" diaginertia="1e-5 3e-5 3e-5"/>
+          <inertial mass="0.074" pos="0.045 0 -0.020" diaginertia="0.000023 0.000073 0.000073"/><!-- femur: shell+MG996R+bracket=74g -->
           <geom name="femur_geom_1" type="capsule" fromto="0 0 0  0.090 0 -0.040" size="0.009" material="leg_mat"/>
           <body name="tibia_1" pos="0.090 0 -0.040">
             <joint name="ankle_1" type="hinge" axis="0 1 0" range="-20 80"/>
-            <inertial mass="0.025" pos="0.030 0 -0.045" diaginertia="1e-5 3e-5 3e-5"/>
+            <inertial mass="0.072" pos="0.030 0 -0.045" diaginertia="0.000014 0.000079 0.000079"/><!-- tibia: shell+MG996R+bracket=71.5g -->
             <geom name="tibia_geom_1" type="capsule" fromto="0 0 0  0.060 0 -0.090" size="0.007" material="leg_mat"/>
             <geom name="foot_1" type="sphere" size="0.013" pos="0.060 0 -0.090" material="foot_mat" condim="6" friction="1.2 0.005 0.0001"/>
             <site name="foot_1_site" pos="0.060 0 -0.090" size="0.013"/>
@@ -94,18 +175,18 @@
         </body>
       </body>
 
-      <!-- LEG 2  (144 deg) -->
-      <body name="coxa_2" pos="-0.105 0.076 0" euler="0 0 144">
+      <!-- LEG 2  right  (-23 deg) — TRIPOD leg -->
+      <body name="coxa_2" pos="0.0703 -0.0296 0" euler="0 0 -23">
         <joint name="hip_2" type="hinge" axis="0 0 1" range="-45 45"/>
-        <inertial mass="0.025" pos="0.022 0 0" diaginertia="1e-5 1e-5 1e-5"/>
+        <inertial mass="0.019" pos="0.022 0 0" diaginertia="1e-6 1e-6 1e-6"/><!-- coxa: shell+SG90+bracket=18.6g -->
         <geom name="coxa_geom_2" type="capsule" fromto="0 0 0  0.045 0 0" size="0.009" material="leg_mat"/>
         <body name="femur_2" pos="0.045 0 0">
           <joint name="knee_2" type="hinge" axis="0 1 0" range="-80 20"/>
-          <inertial mass="0.035" pos="0.045 0 -0.020" diaginertia="1e-5 3e-5 3e-5"/>
+          <inertial mass="0.074" pos="0.045 0 -0.020" diaginertia="0.000023 0.000073 0.000073"/><!-- femur: shell+MG996R+bracket=74g -->
           <geom name="femur_geom_2" type="capsule" fromto="0 0 0  0.090 0 -0.040" size="0.009" material="leg_mat"/>
           <body name="tibia_2" pos="0.090 0 -0.040">
             <joint name="ankle_2" type="hinge" axis="0 1 0" range="-20 80"/>
-            <inertial mass="0.025" pos="0.030 0 -0.045" diaginertia="1e-5 3e-5 3e-5"/>
+            <inertial mass="0.072" pos="0.030 0 -0.045" diaginertia="0.000014 0.000079 0.000079"/><!-- tibia: shell+MG996R+bracket=71.5g -->
             <geom name="tibia_geom_2" type="capsule" fromto="0 0 0  0.060 0 -0.090" size="0.007" material="leg_mat"/>
             <geom name="foot_2" type="sphere" size="0.013" pos="0.060 0 -0.090" material="foot_mat" condim="6" friction="1.2 0.005 0.0001"/>
             <site name="foot_2_site" pos="0.060 0 -0.090" size="0.013"/>
@@ -113,18 +194,18 @@
         </body>
       </body>
 
-      <!-- LEG 3  (216 deg) -->
-      <body name="coxa_3" pos="-0.105 -0.076 0" euler="0 0 216">
+      <!-- LEG 3  bottom  (-90 deg) — TRIPOD leg -->
+      <body name="coxa_3" pos="0.0000 -0.1300 0" euler="0 0 -90">
         <joint name="hip_3" type="hinge" axis="0 0 1" range="-45 45"/>
-        <inertial mass="0.025" pos="0.022 0 0" diaginertia="1e-5 1e-5 1e-5"/>
+        <inertial mass="0.019" pos="0.022 0 0" diaginertia="1e-6 1e-6 1e-6"/><!-- coxa: shell+SG90+bracket=18.6g -->
         <geom name="coxa_geom_3" type="capsule" fromto="0 0 0  0.045 0 0" size="0.009" material="leg_mat"/>
         <body name="femur_3" pos="0.045 0 0">
           <joint name="knee_3" type="hinge" axis="0 1 0" range="-80 20"/>
-          <inertial mass="0.035" pos="0.045 0 -0.020" diaginertia="1e-5 3e-5 3e-5"/>
+          <inertial mass="0.074" pos="0.045 0 -0.020" diaginertia="0.000023 0.000073 0.000073"/><!-- femur: shell+MG996R+bracket=74g -->
           <geom name="femur_geom_3" type="capsule" fromto="0 0 0  0.090 0 -0.040" size="0.009" material="leg_mat"/>
           <body name="tibia_3" pos="0.090 0 -0.040">
             <joint name="ankle_3" type="hinge" axis="0 1 0" range="-20 80"/>
-            <inertial mass="0.025" pos="0.030 0 -0.045" diaginertia="1e-5 3e-5 3e-5"/>
+            <inertial mass="0.072" pos="0.030 0 -0.045" diaginertia="0.000014 0.000079 0.000079"/><!-- tibia: shell+MG996R+bracket=71.5g -->
             <geom name="tibia_geom_3" type="capsule" fromto="0 0 0  0.060 0 -0.090" size="0.007" material="leg_mat"/>
             <geom name="foot_3" type="sphere" size="0.013" pos="0.060 0 -0.090" material="foot_mat" condim="6" friction="1.2 0.005 0.0001"/>
             <site name="foot_3_site" pos="0.060 0 -0.090" size="0.013"/>
@@ -132,18 +213,18 @@
         </body>
       </body>
 
-      <!-- LEG 4  (288 deg) -->
-      <body name="coxa_4" pos="0.040 -0.124 0" euler="0 0 288">
+      <!-- LEG 4  left  (-157 deg) — TRIPOD leg -->
+      <body name="coxa_4" pos="-0.0703 -0.0296 0" euler="0 0 -157">
         <joint name="hip_4" type="hinge" axis="0 0 1" range="-45 45"/>
-        <inertial mass="0.025" pos="0.022 0 0" diaginertia="1e-5 1e-5 1e-5"/>
+        <inertial mass="0.019" pos="0.022 0 0" diaginertia="1e-6 1e-6 1e-6"/><!-- coxa: shell+SG90+bracket=18.6g -->
         <geom name="coxa_geom_4" type="capsule" fromto="0 0 0  0.045 0 0" size="0.009" material="leg_mat"/>
         <body name="femur_4" pos="0.045 0 0">
           <joint name="knee_4" type="hinge" axis="0 1 0" range="-80 20"/>
-          <inertial mass="0.035" pos="0.045 0 -0.020" diaginertia="1e-5 3e-5 3e-5"/>
+          <inertial mass="0.074" pos="0.045 0 -0.020" diaginertia="0.000023 0.000073 0.000073"/><!-- femur: shell+MG996R+bracket=74g -->
           <geom name="femur_geom_4" type="capsule" fromto="0 0 0  0.090 0 -0.040" size="0.009" material="leg_mat"/>
           <body name="tibia_4" pos="0.090 0 -0.040">
             <joint name="ankle_4" type="hinge" axis="0 1 0" range="-20 80"/>
-            <inertial mass="0.025" pos="0.030 0 -0.045" diaginertia="1e-5 3e-5 3e-5"/>
+            <inertial mass="0.072" pos="0.030 0 -0.045" diaginertia="0.000014 0.000079 0.000079"/><!-- tibia: shell+MG996R+bracket=71.5g -->
             <geom name="tibia_geom_4" type="capsule" fromto="0 0 0  0.060 0 -0.090" size="0.007" material="leg_mat"/>
             <geom name="foot_4" type="sphere" size="0.013" pos="0.060 0 -0.090" material="foot_mat" condim="6" friction="1.2 0.005 0.0001"/>
             <site name="foot_4_site" pos="0.060 0 -0.090" size="0.013"/>

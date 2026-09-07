@@ -19,7 +19,9 @@ The gait algorithm is based on the Liu et al. *Five-Limbed Robot* sequential sta
 ## Project Phases
 
 ### ✅ Phase 1 — Hardware Design
-- 5-leg symmetric pentapod body (pentagon layout, 72° spacing)
+- **Asymmetric pentagon body** — elongated bottom sides (14.87 cm × 2) offset CoM toward tripod legs
+  - Top edge: 10.653 cm | Right-upper/Left-upper sides: 15.392 cm | Bottom sides: 14.87 cm × 2
+  - Geometric centroid sits 15.8 mm above true center → biases effective CoM toward legs 2, 3, 4
 - 3 DOF per leg: **Hip** (yaw Z), **Knee** (pitch Y), **Ankle** (pitch Y)
 - 15 total servo motors
 - Dual Arduino UNO controller architecture (brain split across two boards)
@@ -68,29 +70,37 @@ The gait algorithm is based on the Liu et al. *Five-Limbed Robot* sequential sta
 ## Gait Design
 
 ```
-Top view — leg numbering (72° spacing):
+Top view — asymmetric body, legs numbered at pentagon vertices:
 
-          0 (0°)
-      ___/ \___
-  4 /         \ 1
-(288°)       (72°)
-  3 \         / 2
-(216°)\_____/(144°)
+             [L0]─────[L1]        ← top edge  (10.65 cm, SHORT)
+            /   115°  65°  \
+          /                  \    ← upper sides (15.39 cm each)
+        /                      \
+     [L4]         ★CoM         [L2]   ← widest point
+    -157°    (biased toward     -23°
+        \    L2/L3/L4 side)   /
+          \                 /   ← bottom sides (14.87 cm each)
+            \             /
+             ──────[L3]──         ← bottom vertex (-90°, LONG)
 
-Walk direction 0° → swing pair (4,1) goes first
-  → legs 4 & 1 straddle the forward axis symmetrically
-  → support triangle: legs 0, 2, 3 (contains CoM) ✓
+★ CoM sits inside the L2-L3-L4 support triangle at all times.
+  Legs 0 & 1 (top) are the SWING / ARM pair.
+  Legs 2, 3, 4 (bottom) are the stable TRIPOD.
 ```
 
 **5-phase cycle** (each phase lifts 2 legs simultaneously):
 
-| Phase | Swing | Support |
-|-------|-------|---------|
-| 1 | 4, 1 | 0, 2, 3 |
+| Phase | Swing | Support (tripod) |
+|-------|-------|------------------|
+| 1 | 0, 1 | 2, 3, 4 |
 | 2 | 0, 2 | 1, 3, 4 |
-| 3 | 3, 0 | 1, 2, 4 |
-| 4 | 1, 3 | 0, 2, 4 |
-| 5 | 2, 4 | 0, 1, 3 |
+| 3 | 1, 3 | 0, 2, 4 |
+| 4 | 0, 4 | 1, 2, 3 |
+| 5 | 1, 2 | 0, 3, 4 |
+
+> **Note:** Legs 0 & 1 are the primary swing pair since the CoM is already biased
+> toward legs 2, 3, 4. When either 0 or 1 is lifted, the CoM remains inside the
+> support polygon formed by the remaining four legs.
 
 ---
 

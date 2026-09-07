@@ -1,4 +1,4 @@
-﻿"""
+"""
 stability_analysis.py
 =====================
 Reproduces the Liu et al. (2012) Sequential 3+2 Gait stability analysis
@@ -62,7 +62,7 @@ COM_ADVANCE = 0.4 * PACE_LENGTH
 # ---------------------------------------------------------------------------
 
 def is_adjacent(a: int, b: int) -> bool:
-    return abs(a - b) % (NUM_LEGS - 1) == 1
+    return abs(a - b) % NUM_LEGS == 1 or abs(a - b) % NUM_LEGS == NUM_LEGS - 1
 
 ALL_PAIRS = [(a, b) for a in range(NUM_LEGS)
                      for b in range(a+1, NUM_LEGS)
