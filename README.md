@@ -1,7 +1,8 @@
 # Rocky — Pentapod Robot
 
-> 5-legged robot with dual Arduino brain, MuJoCo-validated 3+2 sequential gait,
+> 5-legged walking robot with asymmetric pentagon body, MuJoCo-validated 3+2 sequential gait,
 > and a stationary manipulation mode using a 3-leg tripod base + 2 forward-facing arm legs.
+> Designed for irregular terrain traversal using active CoM balancing across a 5-phase gait cycle.
 
 ---
 
@@ -9,122 +10,172 @@
 
 Rocky is a pentapod (5-legged) robot built around an unconventional weight-balancing strategy:
 
-- **3 legs** form a stable support triangle at all times
-- **2 legs** (placed forward-facing) either step forward (walk mode) or act as manipulator arms (stationary mode)
+- **3 legs** (L2, L3, L4) form a stable support triangle at all times — the **tripod**
+- **2 legs** (L0, L1) either step forward (walk mode) or act as manipulator arms (stationary mode) — the **swing pair**
+- An **asymmetric pentagon body** geometrically biases the frame toward the tripod side
+- **Active hip balancing** compensates for the CoM shift caused by heavy MG996R knee/ankle servos
 
-The gait algorithm is based on the Liu et al. *Five-Limbed Robot* sequential stability analysis paper, with a key modification: **the 2 swing legs face forward instead of the 3**, shifting the robot's active manipulation capability to the front.
+The gait algorithm is based on the Liu et al. *Five-Limbed Robot* sequential stability analysis,
+with the swing pair facing forward rather than the tripod, enabling simultaneous locomotion and manipulation.
 
 ---
 
-## Project Phases
+## Hardware
 
-### ✅ Phase 1 — Hardware Design
-- **Asymmetric pentagon body** — elongated bottom sides (14.87 cm × 2) offset CoM toward tripod legs
-  - Top edge: 10.653 cm | Right-upper/Left-upper sides: 15.392 cm | Bottom sides: 14.87 cm × 2
-  - Geometric centroid sits 15.8 mm above true center → biases effective CoM toward legs 2, 3, 4
-- 3 DOF per leg: **Hip** (yaw Z), **Knee** (pitch Y), **Ankle** (pitch Y)
-- 15 total servo motors
-- Dual Arduino UNO controller architecture (brain split across two boards)
+### Servo Configuration (Mixed Build)
 
-### ✅ Phase 2 — MuJoCo Simulation Setup
-- Full MJCF model in [`pentapod.xml`](pentapod.xml)
-- Freejoint base, 5 legs with correct link geometry
-  - Coxa: 45 mm | Femur: 90 mm + 40 mm offset | Tibia: 60 mm + 90 mm
-- Touch sensors on each foot
-- Position actuators (kp=5) for all 15 joints
-- Interactive viewer via [`view_pentapod.py`](view_pentapod.py)
+| Joint | Servo | Qty | Mass each | Torque | Notes |
+|---|---|---|---|---|---|
+| **Hip** (yaw Z) | SG90 | 5 | 9g | 1.8 kg·cm | Horizontal swing, low load |
+| **Knee** (pitch Y) | MG996R | 5 | 55g | 9.4 kg·cm | Main load-bearing, metal gears |
+| **Ankle** (pitch Y) | MG996R | 5 | 55g | 9.4 kg·cm | Ground reaction, metal gears |
 
-### ✅ Phase 3 — Stability Analysis
-- [`stability_analysis.py`](stability_analysis.py) evaluates all 120 gait permutations
-- Replicates Liu et al. methodology: support polygon margin, CoM projection
-- Identifies optimal swing-pair sequence for given walk direction
+SG90 is sufficient for the hip (horizontal swing, ~1.0 kg·cm needed).
+MG996R is required for knee/ankle — on irregular terrain the dynamic load reaches ~3 kg·cm,
+which exceeds SG90's 1.8 kg·cm limit and would strip plastic gears.
 
-### ✅ Phase 4 — Gait Controller (In Progress)
-- [`gait_runner.py`](gait_runner.py) — main locomotion controller
-- **Stationary mode:** 3-leg tripod (legs 1, 3, 4) + 2 raised arm legs (legs 0, 2)
-- **Walk mode:** Sequential 3+2 gait with sinusoidal lift arc
-  - Swing pair computed per direction using exact hip-angle geometry
-  - Support legs hold neutral stance (stable, no IK drift)
-  - `--speed` flag for slow-motion inspection
+### Electronics
 
-**Key bugs fixed so far:**
-| Bug | Fix |
-|-----|-----|
-| MuJoCo position actuators expect **radians**, not degrees | `set_ctrl` now converts deg→rad |
-| `LIFT_KNEE=+15°` drove feet 7cm underground | Corrected to `LIFT_KNEE=-55°` (negative = femur rises) |
-| IK support tracking cascaded body tilt into collapse | Replaced with neutral-stance support (no IK) |
-| Freejoint initial height unreliable | Explicit `data.qpos[addr:] = [0,0,0.25,1,0,0,0]` |
+| Component | Mass | Notes |
+|---|---|---|
+| Arduino Uno Q | 32g | 68.58 × 53.34 mm, 30–33.5g |
+| PCA9685 16-ch servo driver | 5g | Required — Uno has only 6 PWM pins |
+| 2S 500mAh LiPo | 28g | 2S needed for MG996R stall current |
+| 5V BEC regulator | 5g | Logic power |
+| Wiring + connectors | ~8g | |
 
-### 🔲 Phase 5 — Hardware Integration
-- Export gait joint angle sequences to Arduino-compatible format
-- Map MuJoCo actuator targets → servo PWM signals
-- Tune stance/lift angles on physical hardware
+### Mass Budget
 
-### 🔲 Phase 6 — Closed-Loop Control
-- IMU feedback for body tilt correction
-- Foot contact sensing for adaptive gait timing
-- Direction control via RC or autonomous path planning
+| Group | Mass |
+|---|---|
+| Body (plate + electronics + battery) | 83g |
+| 5 × leg set (coxa+femur+tibia shells) | 176g |
+| 5 × SG90 hip + brackets | 58g |
+| 10 × MG996R knee/ankle + brackets | 595g |
+| **Total** | **~908g** |
+
+### Key Geometry
+
+| Measurement | Value |
+|---|---|
+| L0–L1 hip span | 87.8 mm |
+| L0–L1 foot span (neutral) | 252.6 mm |
+| L0/L1 → nearest tripod (L4/L2) | 396.8 mm |
+| L0/L1 → L3 (furthest) | 609.6 mm |
+| Tripod L2–L4 top edge Y | −105.8 mm |
+| Foot reach from centre (L3 dir) | 325 mm |
+
+---
+
+## Centre of Mass Analysis
+
+The asymmetric pentagon's **geometric centroid is only −2.5 mm Y** — barely off centre.
+The short top edge (L0–L1) vs elongated bottom sides nearly balance out.
+
+With the mixed servo build, **MG996R legs dominate the mass** (821g legs vs 83g body):
+
+```
+Pentagon geometric centroid :   -2.5 mm Y   (shape alone gives almost nothing)
+Body inertial CoM (XML)     : -120.0 mm Y   (battery pushed toward L3)
+Full system CoM (body+legs) :   ~-7.0 mm Y  (leg mass nearly cancels bias)
+Tripod L2-L4 support edge   : -105.8 mm Y   (CoM must be below this for passive balance)
+```
+
+**The system CoM (−7mm) is outside the tripod support triangle by ~99mm.**
+This means the robot cannot passively balance on 3 legs — it requires **active hip actuation**
+to shift effective CoM during stance transitions. This is intentional and analogous to how
+biological walkers dynamically shift weight.
+
+**Physical build rule:** mount the LiPo as far toward L3 (rear) as possible (~120–130mm from centre).
+
+---
+
+## Body Layout (Top View)
+
+```
+              [L0]────[L1]         ← top edge  (87.8mm hip span, 252.6mm foot span)
+             /  115°   65°  \
+           /                  \    ← upper sides
+         /                      \
+      [L4]          ★           [L2]   ← widest point
+     -157°    (CoM target)      -23°
+         \    -120mm Y  /
+           \           /           ← lower sides (elongated)
+             \       /
+              ──[L3]──             ← bottom vertex (-90°, furthest reach 325mm)
+
+  SWING  = L0, L1  (top, SG90 hip + MG996R knee/ankle)
+  TRIPOD = L2, L3, L4  (bottom, same servo config)
+  ★ CoM = -7mm Y (active balancing required to stay inside tripod triangle)
+```
 
 ---
 
 ## Gait Design
 
-```
-Top view — asymmetric body, legs numbered at pentagon vertices:
+**5-phase cycle** — each phase lifts 2 non-adjacent legs simultaneously:
 
-             [L0]─────[L1]        ← top edge  (10.65 cm, SHORT)
-            /   115°  65°  \
-          /                  \    ← upper sides (15.39 cm each)
-        /                      \
-     [L4]         ★CoM         [L2]   ← widest point
-    -157°    (biased toward     -23°
-        \    L2/L3/L4 side)   /
-          \                 /   ← bottom sides (14.87 cm each)
-            \             /
-             ──────[L3]──         ← bottom vertex (-90°, LONG)
+| Phase | Swing pair | Support tripod |
+|---|---|---|
+| 1 | L0, L1 | L2, L3, L4 |
+| 2 | L0, L2 | L1, L3, L4 |
+| 3 | L1, L3 | L0, L2, L4 |
+| 4 | L0, L4 | L1, L2, L3 |
+| 5 | L1, L2 | L0, L3, L4 |
 
-★ CoM sits inside the L2-L3-L4 support triangle at all times.
-  Legs 0 & 1 (top) are the SWING / ARM pair.
-  Legs 2, 3, 4 (bottom) are the stable TRIPOD.
-```
-
-**5-phase cycle** (each phase lifts 2 legs simultaneously):
-
-| Phase | Swing | Support (tripod) |
-|-------|-------|------------------|
-| 1 | 0, 1 | 2, 3, 4 |
-| 2 | 0, 2 | 1, 3, 4 |
-| 3 | 1, 3 | 0, 2, 4 |
-| 4 | 0, 4 | 1, 2, 3 |
-| 5 | 1, 2 | 0, 3, 4 |
-
-> **Note:** Legs 0 & 1 are the primary swing pair since the CoM is already biased
-> toward legs 2, 3, 4. When either 0 or 1 is lifted, the CoM remains inside the
-> support polygon formed by the remaining four legs.
+The gait sequence order is computed per walking direction by `build_gait_sequence()` in
+[`gait_runner.py`](gait_runner.py) — the pair most aligned with the walk direction steps first.
 
 ---
 
-## Quick Start
+## Simulation
+
+### Setup
 
 ```bash
-# Install MuJoCo Python bindings
 pip install mujoco
+```
 
+### Run
+
+```bash
 # View static stance
 python view_pentapod.py --static
 
-# Free-fall test (robot drops onto legs)
+# Free-fall drop test (robot settles onto legs)
 python view_pentapod.py
 
-# Run gait simulation
+# Walk forward
 python gait_runner.py --mode walk --direction 0
 
-# Slow motion for inspection (5x slower)
+# Walk in any direction (degrees)
+python gait_runner.py --mode walk --direction 90
+
+# Slow motion — recommended for inspection (5x slower)
 python gait_runner.py --mode walk --direction 0 --speed 0.2
 
-# Stationary / arm mode
+# Stationary mode: tripod base + 2 raised arm legs
 python gait_runner.py --mode stationary
+
+# Stability analysis — evaluates all 120 gait permutations
+python stability_analysis.py
+
+# Leg geometry analysis + top-down diagram
+python leg_geometry_analysis.py
 ```
+
+### Simulation Parameters
+
+| Parameter | Value | Notes |
+|---|---|---|
+| Total simulated mass | 908g | Matches physical build |
+| Body mass | 83g | Plate + Uno Q + PCA9685 + LiPo + BEC |
+| Coxa mass | 19g | Shell + SG90 + bracket |
+| Femur mass | 74g | Shell + MG996R + bracket |
+| Tibia mass | 72g | Shell + MG996R + bracket |
+| Timestep | 2ms | `option timestep="0.002"` |
+| Position kp | 5 | May need tuning for 908g robot |
+| Force range | ±2 N | May need increase for MG996R torque |
 
 ---
 
@@ -132,14 +183,42 @@ python gait_runner.py --mode stationary
 
 ```
 rocky/
-├── pentapod.xml          # MuJoCo MJCF robot model
-├── view_pentapod.py      # Static viewer + free-fall test
-├── gait_runner.py        # Gait controller (walk + stationary)
-├── stability_analysis.py # Gait permutation stability evaluator
+├── pentapod.xml              # MuJoCo MJCF model (masses, geometry, sensors)
+├── gait_runner.py            # Gait controller — walk + stationary modes
+├── stability_analysis.py     # All 120 gait permutation stability evaluator
+├── leg_geometry_analysis.py  # Geometry + CoM analysis, generates diagram
+├── leg_geometry.png          # Top-down leg geometry diagram
+├── view_pentapod.py          # Static viewer + free-fall test
+├── stability_results.csv     # Full 120×10 stability margin matrix
+├── top_gaits.txt             # Top-ranked stable gait sequences
 ├── .gitignore
 └── docs/
-    └── Five-limbed_robot_R10.md   # Reference paper (Liu et al.)
+    └── Five-limbed_robot_R10.md   # Reference: Liu et al. gait paper
 ```
+
+---
+
+## Project Phases
+
+| Phase | Status | Description |
+|---|---|---|
+| 1 — Hardware Design | ✅ | Asymmetric pentagon body, 3-DOF legs, servo selection |
+| 2 — MuJoCo Model | ✅ | Full MJCF, realistic masses, touch sensors, freejoint |
+| 3 — Stability Analysis | ✅ | 120 permutation sweep, optimal gait sequence identified |
+| 4 — Gait Controller | 🔄 | Walk + stationary running, forward travel under tuning |
+| 5 — Hardware Integration | 🔲 | Joint angles → Arduino PWM, physical servo tuning |
+| 6 — Closed-Loop Control | 🔲 | IMU tilt feedback, foot contact adaptive timing |
+
+### Key Bugs Fixed
+
+| Bug | Fix |
+|---|---|
+| Position actuators expected radians | `set_ctrl()` now converts deg→rad |
+| `LIFT_KNEE=+15°` drove feet 7cm underground | Corrected to `LIFT_KNEE=-55°` |
+| IK support tracking cascaded into collapse | Replaced with neutral-stance hold |
+| Freejoint initial height unreliable | Explicit `qpos[addr:] = [0,0,0.25,1,0,0,0]` |
+| Body CoM (−8mm) outside tripod triangle | Set to −120mm Y (battery placement) |
+| Placeholder masses (1225g) | Updated to realistic 908g mixed build |
 
 ---
 
@@ -147,9 +226,11 @@ rocky/
 
 **Phase 4 — active development**
 
-The simulation runs stably for hundreds of gait cycles. The robot maintains its stance
-height and the 5-phase gait sequence executes without collapse. Forward locomotion from
-hip angle stepping is under tuning — the geometry is correct, net displacement per cycle
-is being verified visually at `--speed 0.2`.
+Simulation runs stably for hundreds of gait cycles. Mass model updated to reflect the physical
+mixed servo build (SG90 hip, MG996R knee/ankle, Arduino Uno Q, 2S LiPo — ~908g total).
+Geometry analysis confirms L0–L1 foot span of 252.6mm and 396.8mm cross-diagonals for
+gait transition overlap. Active CoM balancing via hip servos is required during 3-leg stance
+due to MG996R leg mass (821g) dominating the 83g body.
 
-Next: confirm visible forward travel in simulation, then begin Phase 5 hardware mapping.
+Next: tune `kp` and `forcerange` for 908g robot, confirm visible forward travel at `--speed 0.2`,
+then begin Phase 5 Arduino PWM mapping.
